@@ -1,5 +1,5 @@
 use crate::blockchain::*;
-
+use std::fmt;
 #[derive(Debug)]
 pub struct Transaction {
     sender_address : Vec<u8>,
@@ -15,11 +15,24 @@ impl  Transaction {
             }
     }
 }
+impl fmt::Display for Transaction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Repeat 40 dashes
+        let separator = "-".repeat(40);
 
+        write!(
+            f,
+            "{}\nSender address : {:?}\nRecipient address : {:?}\nValue : {}\n{}",
+            separator,
+            self.sender_address,
+            self.recipient_address,
+            self.value,
+            separator
+        )
+    }
+}
 
-
-
-impl serilization<Transaction> for Transaction {
+impl Serilization<Transaction> for Transaction {
     fn deserialization(bytes: Vec<u8>) -> Transaction {
         let mut pos = 0;
 
@@ -37,8 +50,9 @@ impl serilization<Transaction> for Transaction {
 
         // Deserialize value (assuming it's u64)
         let len_value = usize::from_be_bytes(bytes[pos..pos+8].try_into().unwrap());
+        pos += 8;
         let value = u64::from_be_bytes(bytes[pos..pos+len_value].try_into().unwrap());
-        pos +=8;
+       
 
         Transaction {
             sender_address,

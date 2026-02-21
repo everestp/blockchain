@@ -1,9 +1,11 @@
 
 use std::{time::SystemTime, vec};
 use sha2::{Digest, Sha256 ,};
+
+use crate::blockchain::transaction::Transaction;
 pub mod transaction;
 
-pub trait  serilization <T>{
+pub trait  Serilization <T>{
     fn serialization(&self)-> Vec<u8>;
     fn deserialization(byte : Vec<u8>)-> T;
 }
@@ -86,42 +88,45 @@ impl BlockChain {
         bc
     }
 pub fn print(&self) {
-        if self.chain.is_empty() {
-            println!("⚠️  Blockchain is empty!");
-            return;
-        }
-
-        println!("{}", "=".repeat(80));
-        println!("🟢  Blockchain contains {} block(s)", self.chain.len());
-        println!("{}", "=".repeat(80));
-
-        for (i, block) in self.chain.iter().enumerate() {
-            println!("\n🔹 Block #{} {}", i, "-".repeat(50));
-            println!("Nonce       : {}", block.nonce);
-            println!("Timestamp   : {}", block.time_stamps);
-            println!(
-                "PreviousHash: {}",
-                hex::encode(&block.previous_hash) // hex format
-            );
-            println!("BlockHash   : {}", hex::encode(block.hash()));
-            println!("Transactions:");
-            if block.transactions.is_empty() {
-                println!("  No transactions");
-            } else {
-                for (j, tx) in block.transactions.iter().enumerate() {
-                    println!("  [{}] {}", j, hex::encode(tx));
-                }
-            }
-            println!("{}", "-".repeat(80));
-        }
-
-        println!("\n✅ End of Blockchain\n{}", "=".repeat(80));
+    if self.chain.is_empty() {
+        println!("Blockchain is empty!");
+        return;
     }
+
+    println!("{}", "=".repeat(80));
+    println!("Blockchain contains {} block(s)", self.chain.len());
+    println!("{}", "=".repeat(80));
+
+    for (i, block) in self.chain.iter().enumerate() {
+        println!("\nBlock #{} {}", i, "-".repeat(50));
+        println!("Nonce       : {}", block.nonce);
+        println!("Timestamp   : {}", block.time_stamps);
+        println!(
+            "PreviousHash: {}",
+            hex::encode(&block.previous_hash) // hex format
+        );
+        println!("BlockHash   : {}", hex::encode(block.hash()));
+        println!("Transactions:");
+        if block.transactions.is_empty() {
+            println!("  No transactions");
+        } else {
+            for (j, tx) in block.transactions.iter().enumerate() {
+                println!("  [{}] {}", j, hex::encode(tx));
+            }
+        }
+        println!("{}", "-".repeat(80));
+    }
+
+    println!("\nEnd of Blockchain\n{}", "=".repeat(80));
+}
     pub fn create_block(&mut self, nonce: i32, previous_hash: Vec<u8>) {
-        let b = Block::new(nonce, previous_hash);
+        let mut b = Block::new(nonce, previous_hash);
+        for tx in self.transaction_pool.iter(){
+            b.transactions.push(tx.clone());
+        }
+        self.transaction_pool.clear();
         self.chain.push(b);
     }
-
   
     pub fn last_block(&self) -> &Block {
         if self.chain.len() > 1 {
@@ -195,4 +200,14 @@ pub fn print(&self) {
             BlockSearch::SearchByNonce(nonce) => BlockSearchResult::FailOfNonce(nonce),
         }
     }
+
+pub fn add_transaction(&mut self, tx: &impl Serilization<Transaction>) {
+    for tx_in_pool in self.transaction_pool.iter() {
+        if *tx_in_pool == tx.serialization() {
+            return;
+        }
+    }
+    self.transaction_pool.push(tx.serialization());
+}
+
 }
