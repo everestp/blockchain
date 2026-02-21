@@ -1,7 +1,12 @@
+
 use std::{time::SystemTime, vec};
+use sha2::{Digest, Sha256 ,};
+pub mod transaction;
 
-use sha2::{Digest, Sha256};
-
+pub trait  serilization <T>{
+    fn serialization(&self)-> Vec<u8>;
+    fn deserialization(byte : Vec<u8>)-> T;
+}
 pub enum BlockSearch {
     SearchByIndex(usize),
     SearchByPreviousHash(Vec<u8>),
@@ -80,20 +85,44 @@ impl BlockChain {
         bc.create_block(0, vec![0 as u8, 32]);
         bc
     }
+pub fn print(&self) {
+        if self.chain.is_empty() {
+            println!("⚠️  Blockchain is empty!");
+            return;
+        }
 
+        println!("{}", "=".repeat(80));
+        println!("🟢  Blockchain contains {} block(s)", self.chain.len());
+        println!("{}", "=".repeat(80));
+
+        for (i, block) in self.chain.iter().enumerate() {
+            println!("\n🔹 Block #{} {}", i, "-".repeat(50));
+            println!("Nonce       : {}", block.nonce);
+            println!("Timestamp   : {}", block.time_stamps);
+            println!(
+                "PreviousHash: {}",
+                hex::encode(&block.previous_hash) // hex format
+            );
+            println!("BlockHash   : {}", hex::encode(block.hash()));
+            println!("Transactions:");
+            if block.transactions.is_empty() {
+                println!("  No transactions");
+            } else {
+                for (j, tx) in block.transactions.iter().enumerate() {
+                    println!("  [{}] {}", j, hex::encode(tx));
+                }
+            }
+            println!("{}", "-".repeat(80));
+        }
+
+        println!("\n✅ End of Blockchain\n{}", "=".repeat(80));
+    }
     pub fn create_block(&mut self, nonce: i32, previous_hash: Vec<u8>) {
         let b = Block::new(nonce, previous_hash);
         self.chain.push(b);
     }
 
-    pub fn print(&self) {
-        for (i, block) in self.chain.iter().enumerate() {
-            println!(" {} Chain {} {}", "=".repeat(25), i, "=".repeat(25));
-            block.print();
-        }
-        println!("{}", "*".repeat(25));
-    }
-
+  
     pub fn last_block(&self) -> &Block {
         if self.chain.len() > 1 {
             &self.chain[self.chain.len() - 1]
@@ -103,37 +132,33 @@ impl BlockChain {
     }
 
     pub fn search_block(&self, search: BlockSearch) -> BlockSearchResult {
+        if self.chain.is_empty() {
+            return BlockSearchResult::FailOfEmptyBlocks;
+        }
+
         for (idx, block) in self.chain.iter().enumerate() {
             match search {
                 BlockSearch::SearchByIndex(index) => {
                     if idx == index {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfIndex(index);
                     }
                 }
 
                 BlockSearch::SearchByPreviousHash(ref hash) => {
                     if block.previous_hash == *hash {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfPreviousHash(hash.to_vec());
                     }
                 }
 
                 BlockSearch::SearchByBlockHash(ref hash) => {
                     if block.hash() == *hash {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfBlockHash(hash.to_vec());
                     }
                 }
 
                 BlockSearch::SearchByTimeStamp(ts) => {
                     if block.time_stamps == ts {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfTimeStamp(ts);
                     }
                 }
 
@@ -147,23 +172,27 @@ impl BlockChain {
                     }
                     if found {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfTransaction(transaction.to_vec());
                     }
                 }
 
                 BlockSearch::SearchByNonce(nonce) => {
-                    if block.nonce == nonce  {
+                    if block.nonce == nonce {
                         return BlockSearchResult::Success(block);
-                    }  if idx >= self.chain.len() {
-                        return BlockSearchResult::FailOfNonce(nonce);
                     }
                 }
             }
         }
 
-    
-
-        BlockSearchResult::FailOfEmptyBlocks
+        // If not found, return the correct Fail variant
+        match search {
+            BlockSearch::SearchByIndex(idx) => BlockSearchResult::FailOfIndex(idx),
+            BlockSearch::SearchByPreviousHash(hash) => {
+                BlockSearchResult::FailOfPreviousHash(hash)
+            }
+            BlockSearch::SearchByBlockHash(hash) => BlockSearchResult::FailOfBlockHash(hash),
+            BlockSearch::SearchByTimeStamp(ts) => BlockSearchResult::FailOfTimeStamp(ts),
+            BlockSearch::SearchByTransaction(tx) => BlockSearchResult::FailOfTransaction(tx),
+            BlockSearch::SearchByNonce(nonce) => BlockSearchResult::FailOfNonce(nonce),
+        }
     }
 }

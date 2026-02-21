@@ -1,5 +1,4 @@
 pub mod blockchain;
-
 use blockchain::{Block , BlockChain , BlockSearch,BlockSearchResult};
 use sha2::{Digest, Sha256};
 
