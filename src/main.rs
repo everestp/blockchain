@@ -1,6 +1,6 @@
 pub mod  blockchain;
 use blockchain::{BlockSearchResult};
-use crate::blockchain::{Block, BlockChain, Serilization, transaction::Transaction};
+use crate::blockchain::{Block, BlockChain, Serialization, transaction::Transaction};
 
 fn get_block_search_result(result: BlockSearchResult) {
     match result {
@@ -89,9 +89,18 @@ fn main() {
 
     // println!("\nBlockchain AFTER mining:");
     // blockchain.print();   //  transaction now visible
-
-
-let mut block_chain = BlockChain::new();
-
+let my_block_chain_adress = "my blockchain_Address";
+let mut block_chain = BlockChain::new(my_block_chain_adress.into());
 block_chain.print();
+block_chain.add_transaction(&Transaction::new("A".into(), "B".into(), 10));
+block_chain.mining();
+block_chain.print();
+block_chain.add_transaction(&Transaction::new("C".into(), "D".into(), 10));
+block_chain.add_transaction(&Transaction::new("X".into(), "Y".into(), 10));
+block_chain.mining();
+block_chain.print();
+println!("value for miner :{}",block_chain.calculate_total_amount(my_block_chain_adress.to_string()));
+println!("value for C :{}",block_chain.calculate_total_amount("C".to_string()));
+println!("value for D :{}",block_chain.calculate_total_amount("D".to_string()));
+
 }

@@ -2,9 +2,9 @@ use crate::blockchain::*;
 use std::fmt;
 #[derive(Debug)]
 pub struct Transaction {
-    sender_address : Vec<u8>,
-    recipient_address :Vec<u8>,
-    value : u64,
+   pub sender_address : Vec<u8>,
+   pub recipient_address :Vec<u8>,
+   pub value : u64,
 }
 impl  Transaction {
     pub fn new(sender:Vec<u8>, receipient:Vec<u8>,value:u64)-> Transaction{
@@ -32,7 +32,7 @@ impl fmt::Display for Transaction {
     }
 }
 
-impl Serilization<Transaction> for Transaction {
+impl Serialization<Transaction> for Transaction {
     fn deserialization(bytes: Vec<u8>) -> Transaction {
         let mut pos = 0;
 
