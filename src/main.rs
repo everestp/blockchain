@@ -1,6 +1,6 @@
 pub mod  blockchain;
 use blockchain::{BlockSearchResult};
-use crate::blockchain::{BlockChain, Serilization, transaction::Transaction};
+use crate::blockchain::{Block, BlockChain, Serilization, transaction::Transaction};
 
 fn get_block_search_result(result: BlockSearchResult) {
     match result {
@@ -34,59 +34,64 @@ fn get_block_search_result(result: BlockSearchResult) {
 
 fn main() {
 
-    // Create blockchain
-    let mut blockchain = BlockChain::new();
+    // // Create blockchain
+    // let mut blockchain = BlockChain::new();
 
-    println!("Initial Blockchain:");
-    blockchain.print();
+    // println!("Initial Blockchain:");
+    // blockchain.print();
 
-    // ------------------------------------------------
-    // Create some empty blocks
-    // ------------------------------------------------
-    let prev_hash = blockchain.last_block().hash().clone();
-    blockchain.create_block(1, prev_hash);
+    // // ------------------------------------------------
+    // // Create some empty blocks
+    // // ------------------------------------------------
+    // let prev_hash = blockchain.last_block().hash().clone();
+    // blockchain.create_block(1, prev_hash);
 
-    let prev_hash = blockchain.last_block().hash().clone();
-    blockchain.create_block(2, prev_hash);
+    // let prev_hash = blockchain.last_block().hash().clone();
+    // blockchain.create_block(2, prev_hash);
 
-    println!("\nBlockchain after creating 2 blocks:");
-    blockchain.print();
+    // println!("\nBlockchain after creating 2 blocks:");
+    // blockchain.print();
 
-    // ------------------------------------------------
-    // Create Transaction
-    // ------------------------------------------------
-    let tx = Transaction::new(
-        b"Alice".to_vec(),
-        b"Bob".to_vec(),
-        250,
-    );
+    // // ------------------------------------------------
+    // // Create Transaction
+    // // ------------------------------------------------
+    // let tx = Transaction::new(
+    //     b"Alice".to_vec(),
+    //     b"Bob".to_vec(),
+    //     250,
+    // );
 
-    println!("\nTransaction:");
-    println!("{}", tx);
+    // println!("\nTransaction:");
+    // println!("{}", tx);
 
-    // Serialize
-    let tx_bin = tx.serialization();
-    println!("Serialized: {:?}", tx_bin);
+    // // Serialize
+    // let tx_bin = tx.serialization();
+    // println!("Serialized: {:?}", tx_bin);
 
-    // Deserialize
-    let tx_from_bin = Transaction::deserialization(tx_bin);
-    println!("Deserialized: {}", tx_from_bin);
+    // // Deserialize
+    // let tx_from_bin = Transaction::deserialization(tx_bin);
+    // println!("Deserialized: {}", tx_from_bin);
 
-    // ------------------------------------------------
-    // Add transaction to pool (MEMPOOL)
-    // ------------------------------------------------
-    blockchain.add_transaction(&tx_from_bin);
+    // // ------------------------------------------------
+    // // Add transaction to pool (MEMPOOL)
+    // // ------------------------------------------------
+    // blockchain.add_transaction(&tx_from_bin);
 
-    println!("\nTransaction added to pool.");
-    println!("Blockchain BEFORE mining:");
-    blockchain.print();   // still no transaction in block
+    // println!("\nTransaction added to pool.");
+    // println!("Blockchain BEFORE mining:");
+    // blockchain.print();   // still no transaction in block
 
-    // ------------------------------------------------
-    // Mine new block (VERY IMPORTANT STEP)
-    // ------------------------------------------------
-    let prev_hash = blockchain.last_block().hash().clone();
-    blockchain.create_block(3, prev_hash);
+    // // ------------------------------------------------
+    // // Mine new block (VERY IMPORTANT STEP)
+    // // ------------------------------------------------
+    // let prev_hash = blockchain.last_block().hash().clone();
+    // blockchain.create_block(3, prev_hash);
 
-    println!("\nBlockchain AFTER mining:");
-    blockchain.print();   //  transaction now visible
+    // println!("\nBlockchain AFTER mining:");
+    // blockchain.print();   //  transaction now visible
+
+
+let mut block_chain = BlockChain::new();
+
+block_chain.print();
 }

@@ -1,9 +1,10 @@
 
-use std::{time::SystemTime, vec};
+use std::{time::{Instant, SystemTime}, vec};
 use sha2::{Digest, Sha256 ,};
 
 use crate::blockchain::transaction::Transaction;
 pub mod transaction;
+ use std::ops::AddAssign;
 
 pub trait  Serilization <T>{
     fn serialization(&self)-> Vec<u8>;
@@ -35,6 +36,12 @@ pub struct Block {
     previous_hash: Vec<u8>,
     time_stamps: u128,
     transactions: Vec<Vec<u8>>,
+}
+
+impl AddAssign<i32>  for Block{
+    fn add_assign(&mut self, rhs: i32) {
+         self.nonce +=rhs;
+    }
 }
 
 impl Block {
@@ -79,6 +86,7 @@ pub struct BlockChain {
 }
 
 impl BlockChain {
+    const DIFFICULTY : usize = 5;
     pub fn new() -> Self {
         let mut bc = BlockChain {
             transaction_pool: Vec::<Vec<u8>>::new(),
@@ -125,7 +133,12 @@ pub fn print(&self) {
             b.transactions.push(tx.clone());
         }
         self.transaction_pool.clear();
+
+        let now = Instant::now();
+        let proof_hash = BlockChain::do_proof_of_work(&mut b);
+        let elapsed = now.elapsed();
         self.chain.push(b);
+        println!("compute timee :{:?}\n proof for the current block is : {:?}",elapsed ,proof_hash)
     }
   
     pub fn last_block(&self) -> &Block {
@@ -209,5 +222,18 @@ pub fn add_transaction(&mut self, tx: &impl Serilization<Transaction>) {
     }
     self.transaction_pool.push(tx.serialization());
 }
+
+fn do_proof_of_work(block: &mut Block)->String{
+    loop{
+        let hash = block.hash();
+        let  hash_str = hex::encode(&hash);
+       if hash_str[0..BlockChain::DIFFICULTY] == "0".repeat(BlockChain::DIFFICULTY){
+        return hash_str;
+       }
+       *block +=1;
+
+    }
+}
+
 
 }
