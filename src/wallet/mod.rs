@@ -1,14 +1,24 @@
 use p256::{
-    ecdsa::{SigningKey, VerifyingKey},
+    ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer, signature::Verifier},
     elliptic_curve::rand_core::OsRng,
 };
 use sha2::{Sha256, Digest};
-use ripemd160::{Ripemd160 , Digest as RipDigest};
+use ripemd160::{Ripemd160, Digest as RipDigest};
+use serde::{Serialize, Deserialize};
 
 pub struct Wallet {
     pub signing_key: SigningKey,
     pub verifying_key: VerifyingKey,
     address: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct Transaction {
+    pub sender: String,
+    pub recipient: String,
+    pub amount: u64,
+    pub public_key: String,
+    pub signature: String,
 }
 
 /*
@@ -32,7 +42,6 @@ impl Wallet {
             let encoded = verifying_key.to_encoded_point(false);
 
             if let (Some(x), Some(y)) = (encoded.x(), encoded.y()) {
-
                 let mut pub_key_bytes = Vec::with_capacity(x.len() + y.len());
                 pub_key_bytes.extend_from_slice(x);
                 pub_key_bytes.extend_from_slice(y);
@@ -60,7 +69,6 @@ impl Wallet {
 
                 // STEP 8 — base58 encoding
                 bs58::encode(full_hash).into_string()
-
             } else {
                 String::new()
             }
@@ -81,11 +89,7 @@ impl Wallet {
         let encoded = self.verifying_key.to_encoded_point(false);
 
         if let (Some(x), Some(y)) = (encoded.x(), encoded.y()) {
-            format!(
-                "{}{}",
-                hex::encode(x),
-                hex::encode(y)
-            )
+            format!("{}{}", hex::encode(x), hex::encode(y))
         } else {
             String::new()
         }
@@ -98,5 +102,47 @@ impl Wallet {
 
     pub fn get_adress(&self) -> String {
         self.address.clone()
+    }
+
+    // SIGN A TRANSACTION
+    pub fn sign_transaction(&mut self, receiver: &String, amount: u64) -> Transaction {
+        let mut transaction = Transaction {
+            sender: self.address.clone(),
+            recipient: receiver.clone(),
+            amount,
+            signature: String::new(),
+            public_key: self.public_key_str(),
+        };
+
+        let serialize_str = serde_json::to_string(&transaction).unwrap();
+        let serialized = serialize_str.as_bytes();
+
+        // Sign using mutable reference to self.signing_key
+        let sig: Signature = self.signing_key.sign(serialized);
+        transaction.signature = hex::encode(sig.to_bytes());
+
+        transaction
+    }
+
+    // VERIFY A TRANSACTION
+    pub fn verify_transaction(transaction: &Transaction) -> bool {
+        let signature_bin = hex::decode(&transaction.signature).unwrap();
+
+        let mut transaction_clone = transaction.clone();
+        transaction_clone.signature = String::new();
+
+        let serialize_str = serde_json::to_string(&transaction_clone).unwrap();
+        let serialized = serialize_str.as_bytes();
+
+        // Convert signature from hex string to Signature struct
+        let sig_array: [u8; 64] = signature_bin.try_into().unwrap();
+        let signature = Signature::from_bytes(&sig_array.into()).unwrap();
+
+        let mut public_key_bin = hex::decode(&transaction.public_key).unwrap();
+        public_key_bin.insert(0, 0x04); // sec1 format [0x04 || x || y]
+
+        let public_key = VerifyingKey::from_sec1_bytes(&public_key_bin).unwrap();
+
+        public_key.verify(serialized, &signature).is_ok()
     }
 }
