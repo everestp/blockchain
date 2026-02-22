@@ -23,6 +23,8 @@ pub struct ApiServer {
     
      */
     cache: Arc<Mutex<HashMap<String, BlockChain>>>, // wallet_address -> blockchain
+    neighbour : Arc<Mutex<Vec<String>>>,
+
 }
 
 
@@ -43,12 +45,20 @@ struct QueryAmount {
 
 
 impl ApiServer {
+    const BLOCKCHAIN_PORT_RANGE_START : u8 = 0;
+     const BLOCKCHAIN_PORT_RANGE_END : u8 = 3;
+      const NEIGHBOUR_IP_RANGE_START : u8 = 0;
+      const NEIGHBOUR_IP_RANGE_END : u8 = 1;
+      const NEIGHBOUR_IP_SYNC_TIME : u8 = 20;
+
+
    pub fn new(port: u16) -> Self {
     let cache = Arc::new(Mutex::new(HashMap::new()));
-
+  let neighbour =  Arc::new(Mutex::new(vec![]));
     let mut api_server = ApiServer {
         port,
         cache,
+        neighbour,
     };
 
     let wallet_miner = Wallet::new();
