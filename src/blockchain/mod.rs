@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     ops::{AddAssign, Index},
@@ -37,7 +37,7 @@ pub enum BlockSearchResult<'a> {
 }
 
 /// Blockchain block
-#[derive(Debug)]
+#[derive(Debug ,Clone ,Serialize ,Deserialize)]
 pub struct Block {
     nonce: i32,
     previous_hash: Vec<u8>,
@@ -101,7 +101,7 @@ impl Block {
 }
 
 /// Blockchain struct
-#[derive(Debug)]
+#[derive(Debug ,Clone)]
 pub struct BlockChain {
     transaction_pool: Vec<Vec<u8>>,
     chain: Vec<Block>,
@@ -197,58 +197,6 @@ impl BlockChain {
         self.chain.last().unwrap()
     }
 
-    /// Search block by various criteria
-    pub fn search_block(&self, search: BlockSearch) -> BlockSearchResult {
-        if self.chain.is_empty() {
-            return BlockSearchResult::FailOfEmptyBlocks;
-        }
-
-        for (idx, block) in self.chain.iter().enumerate() {
-            match &search {
-                BlockSearch::SearchByIndex(index) => {
-                    if idx == *index {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-                BlockSearch::SearchByPreviousHash(hash) => {
-                    if &block.previous_hash == hash {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-                BlockSearch::SearchByBlockHash(hash) => {
-                    if &block.hash() == hash {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-                BlockSearch::SearchByTimeStamp(ts) => {
-                    if block.time_stamps == *ts {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-                BlockSearch::SearchByTransaction(transaction) => {
-                    if block.transactions.iter().any(|t| t == transaction) {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-                BlockSearch::SearchByNonce(nonce) => {
-                    if block.nonce == *nonce {
-                        return BlockSearchResult::Success(block);
-                    }
-                }
-            }
-        }
-
-        // return corresponding Fail variant
-        match search {
-            BlockSearch::SearchByIndex(idx) => BlockSearchResult::FailOfIndex(idx),
-            BlockSearch::SearchByPreviousHash(hash) => BlockSearchResult::FailOfPreviousHash(hash),
-            BlockSearch::SearchByBlockHash(hash) => BlockSearchResult::FailOfBlockHash(hash),
-            BlockSearch::SearchByTimeStamp(ts) => BlockSearchResult::FailOfTimeStamp(ts),
-            BlockSearch::SearchByTransaction(tx) => BlockSearchResult::FailOfTransaction(tx),
-            BlockSearch::SearchByNonce(nonce) => BlockSearchResult::FailOfNonce(nonce),
-        }
-    }
-
     /// Add a transaction to the pool
     pub fn add_transaction(&mut self, tx: &WalletTransaction) -> bool {
         // miners cannot send money to themselves
@@ -257,20 +205,30 @@ impl BlockChain {
             return false;
         }
 
-        // verify transaction signature if not mining reward
-        if tx.sender != BlockChain::MINING_SENDER && !Wallet::verify_transaction(tx) {
-            println!("invalid transaction");
-            return false;
+        // Check if it's a miner reward transaction
+        let is_miner_reward = tx.sender == BlockChain::MINING_SENDER;
+
+        if !is_miner_reward {
+            // Normal transaction: verify signature
+            if !Wallet::verify_transaction(tx) {
+                println!("invalid transaction");
+                return false;
+            }
+            // Normal transaction: check sender balance
+            if self.calculate_total_amount(tx.sender.clone()) < tx.amount as i64 {
+                println!("Sender does not have enough balance");
+                return false;
+            }
         }
 
-        // create a serialized transaction
+        // Serialize transaction
         let transaction = Transaction::new(
             tx.sender.as_bytes().to_vec(),
             tx.recipient.as_bytes().to_vec(),
             tx.amount,
         );
 
-        // prevent duplicate transactions
+        // Prevent duplicates
         if self.transaction_pool.iter().any(|t| *t == transaction.serialization()) {
             return false;
         }
@@ -296,7 +254,7 @@ impl BlockChain {
     pub fn mining(&mut self) -> bool {
         /*
         When a block is minted, a transaction is created to reward the miner.
-        The blockchain sends this value to the miner.
+        Miner reward does not require signature verification or balance check.
         */
         let tx = WalletTransaction {
             sender: BlockChain::MINING_SENDER.to_string(),
@@ -306,7 +264,7 @@ impl BlockChain {
             signature: "".to_string(),
         };
 
-        self.add_transaction(&tx);
+        self.add_transaction(&tx); // always succeeds
         self.create_block(0, self.last_block().hash());
         true
     }
