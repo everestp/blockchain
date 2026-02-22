@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>CipherCash.org — Digital Internet Currency</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+margin:0;
+font-family:Inter;
+background:#0b0f19;
+color:white;
+}
+
+/* NAVBAR */
+nav{
+display:flex;
+justify-content:space-between;
+padding:20px 40px;
+background:#111827;
+border-bottom:1px solid #1f2937;
+}
+
+.logo{
+font-size:22px;
+font-weight:700;
+color:#22c55e;
+}
+
+.menu button{
+margin-left:10px;
+}
+
+/* SECTIONS */
+section{
+display:none;
+padding:40px;
+}
+
+.active{
+display:block;
+}
+
+/* HERO */
+.hero{
+text-align:center;
+padding:80px 20px;
+}
+
+.hero h1{
+font-size:50px;
+}
+
+button{
+background:#22c55e;
+border:none;
+padding:12px 20px;
+color:white;
+border-radius:8px;
+cursor:pointer;
+font-weight:600;
+}
+
+input{
+padding:10px;
+margin:5px 0;
+width:100%;
+border-radius:6px;
+border:none;
+}
+
+/* CARD */
+.card{
+background:#111827;
+padding:25px;
+border-radius:12px;
+margin-bottom:20px;
+border:1px solid #1f2937;
+}
+
+pre{
+background:black;
+padding:20px;
+height:300px;
+overflow:auto;
+border-radius:10px;
+}
+
+footer{
+text-align:center;
+padding:20px;
+color:#6b7280;
+border-top:1px solid #1f2937;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<nav>
+<div class="logo">⚡ CipherCash.org</div>
+
+<div class="menu">
+<button onclick="show('home')">Home</button>
+<button onclick="show('wallet')">Wallet</button>
+<button onclick="show('transaction')">Send</button>
+<button onclick="show('mine')">Mine</button>
+<button onclick="show('explorer')">Explorer</button>
+</div>
+</nav>
+
+<!-- HOME -->
+
+<section id="home" class="active">
+<div class="hero">
+<h1>CipherCash</h1>
+<p>Secure Digital Internet Currency powered by Rust Blockchain</p>
+<button onclick="show('wallet')">Create Wallet</button>
+</div>
+</section>
+
+<!-- WALLET -->
+
+<section id="wallet">
+<div class="card">
+<h2>Create Wallet</h2>
+<button onclick="createWallet()">Generate Wallet</button>
+
+<p><b>Address:</b></p>
+<pre id="walletAddress">No wallet created</pre>
+</div>
+</section>
+
+<!-- TRANSACTION -->
+
+<section id="transaction">
+<div class="card">
+<h2>Send Transaction</h2>
+
+<input id="sender" placeholder="Sender Address">
+<input id="recipient" placeholder="Recipient Address">
+<input id="amount" placeholder="Amount">
+
+<button onclick="sendTransaction()">Send</button>
+
+<p id="txStatus"></p>
+</div>
+</section>
+
+<!-- MINING -->
+
+<section id="mine">
+<div class="card">
+<h2>Mine Block</h2>
+<p>Earn CipherCash reward</p>
+<button onclick="mine()">Start Mining</button>
+<p id="mineStatus"></p>
+</div>
+</section>
+
+<!-- EXPLORER -->
+
+<section id="explorer">
+<div class="card">
+<h2>Blockchain Explorer</h2>
+<button onclick="loadChain()">Refresh Chain</button>
+<pre id="chain">Loading...</pre>
+</div>
+</section>
+
+<footer>
+CipherCash © 2026 — Rust Powered Digital Currency
+</footer>
+
+<script>
+
+const API="http://localhost:5000";
+
+function show(id){
+document.querySelectorAll("section")
+.forEach(s=>s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
+
+/* WALLET */
+async function createWallet(){
+const res=await fetch(API+"/wallet");
+const data=await res.text();
+document.getElementById("walletAddress").textContent=data;
+}
+
+/* TRANSACTION */
+async function sendTransaction(){
+
+const body={
+sender:document.getElementById("sender").value,
+recipient:document.getElementById("recipient").value,
+amount:parseFloat(document.getElementById("amount").value)
+};
+
+const res=await fetch(API+"/transaction",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(body)
+});
+
+document.getElementById("txStatus").innerText=
+await res.text();
+}
+
+/* MINING */
+async function mine(){
+await fetch(API+"/mine");
+document.getElementById("mineStatus").innerText="Mining completed ✔";
+loadChain();
+}
+
+/* EXPLORER */
+async function loadChain(){
+const res=await fetch(API+"/");
+const data=await res.text();
+document.getElementById("chain").textContent=data;
+}
+
+loadChain();
+
+</script>
+
+</body>
+</html>

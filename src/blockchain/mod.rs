@@ -103,9 +103,9 @@ impl Block {
 /// Blockchain struct
 #[derive(Debug ,Clone)]
 pub struct BlockChain {
-    transaction_pool: Vec<Vec<u8>>,
-    chain: Vec<Block>,
-    blockhain_address: String,
+   pub transaction_pool: Vec<Vec<u8>>,
+   pub chain: Vec<Block>,
+  pub  blockhain_address: String,
 }
 
 /// Allow indexing into blockchain to get a block
@@ -120,7 +120,7 @@ impl Index<usize> for BlockChain {
 impl BlockChain {
     const DIFFICULTY: usize = 3;
     const MINING_SENDER: &str = "THE_BLOCKCHAIN";
-    const MINING_REWARD: u64 = 1;
+    const MINING_REWARD: f64 = 1.0;
 
     /// Create new blockchain and automatically mine genesis block
     pub fn new(address: String) -> Self {
@@ -197,6 +197,15 @@ impl BlockChain {
         self.chain.last().unwrap()
     }
 
+      pub fn get_transactions(&self) -> Vec<Transaction> {
+        let mut transactions = Vec::<Transaction>::new();
+        for tx_in_pool in self.transaction_pool.iter() {
+            transactions.push(Transaction::deserialization(tx_in_pool.to_vec()));
+        }
+
+        transactions
+    }
+
     /// Add a transaction to the pool
     pub fn add_transaction(&mut self, tx: &WalletTransaction) -> bool {
         // miners cannot send money to themselves
@@ -204,6 +213,7 @@ impl BlockChain {
             println!("miner cannot send money to himself");
             return false;
         }
+
 
         // Check if it's a miner reward transaction
         let is_miner_reward = tx.sender == BlockChain::MINING_SENDER;
@@ -215,10 +225,10 @@ impl BlockChain {
                 return false;
             }
             // Normal transaction: check sender balance
-            if self.calculate_total_amount(tx.sender.clone()) < tx.amount as i64 {
-                println!("Sender does not have enough balance");
-                return false;
-            }
+            // if self.calculate_total_amount(tx.sender.clone()) < tx.amount as i64 {
+            //     println!("Sender does not have enough balance");
+            //     return false;
+            // }
         }
 
         // Serialize transaction
@@ -270,7 +280,7 @@ impl BlockChain {
     }
 
     /// Calculate the total balance for an address
-    pub fn calculate_total_amount(&self, address: String) -> i64 {
+    pub fn calculate_total_amount(&self, address: String) -> f64 {
         let mut total_amount: i64 = 0;
         let address_bytes = address.as_bytes();
 
@@ -289,6 +299,6 @@ impl BlockChain {
             }
         }
 
-        total_amount
+        total_amount as f64
     }
 }

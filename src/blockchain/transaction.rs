@@ -1,13 +1,13 @@
 use crate::blockchain::*;
 use std::fmt;
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Transaction {
    pub sender_address : Vec<u8>,
    pub recipient_address :Vec<u8>,
-   pub value : u64,
+   pub value : f64,
 }
 impl  Transaction {
-    pub fn new(sender:Vec<u8>, receipient:Vec<u8>,value:u64)-> Transaction{
+    pub fn new(sender:Vec<u8>, receipient:Vec<u8>,value:f64)-> Transaction{
         Transaction {
              sender_address: sender,
              recipient_address: receipient, 
@@ -51,7 +51,7 @@ impl Serialization<Transaction> for Transaction {
         // Deserialize value (assuming it's u64)
         let len_value = usize::from_be_bytes(bytes[pos..pos+8].try_into().unwrap());
         pos += 8;
-        let value = u64::from_be_bytes(bytes[pos..pos+len_value].try_into().unwrap());
+        let value = f64::from_be_bytes(bytes[pos..pos+len_value].try_into().unwrap());
        
 
         Transaction {

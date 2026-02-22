@@ -26,7 +26,7 @@ pub struct  WalletData {
 pub struct Transaction {
     pub sender: String,
     pub recipient: String,
-    pub amount: u64,
+    pub amount: f64,
     pub public_key: String,
     pub signature: String,
 }
@@ -43,6 +43,33 @@ pub struct Transaction {
 */
 
 impl Wallet {
+ pub fn new_from(public_key_str: &String, private_key_str: &String, address: &String) -> Self {
+        //convert the public string to VerifyingKey
+        //Result<[u8], None>
+        let mut public_key_bin = hex::decode(public_key_str).unwrap();
+        public_key_bin.insert(0, 0x04);
+        let verifying_key = VerifyingKey::from_sec1_bytes(&public_key_bin).unwrap();
+
+        let private_key_bytes = hex::decode(&private_key_str).unwrap();
+        /*
+        1, the binary data of private key should be 32 bytes,
+        2, private_key_bytes is Vec<u8>, convert it to [u8;32], trait of try_into
+        3, input param from_bytes should have type of GenericArray, use the into() trait
+        to convert [u8; 32] into type of GenericArray
+        */
+        let private_key_bytes: [u8; 32] = private_key_bytes
+            .try_into()
+            .expect("Invalid private key hex data");
+        let signing_key = SigningKey::from_bytes((&private_key_bytes).into()).unwrap();
+
+        Wallet {
+            verifying_key,
+            signing_key,
+            address: address.clone(),
+        }
+    }
+
+    
     pub fn new() -> Self {
         let signing_key = SigningKey::random(&mut OsRng);
         let verifying_key = signing_key.verifying_key().clone();
@@ -123,7 +150,7 @@ impl Wallet {
     }
 
     // SIGN A TRANSACTION
-    pub fn sign_transaction(&mut self, receiver: &String, amount: u64) -> Transaction {
+    pub fn sign_transaction(&mut self, receiver: &String, amount: f64) -> Transaction {
         let mut transaction = Transaction {
             sender: self.address.clone(),
             recipient: receiver.clone(),

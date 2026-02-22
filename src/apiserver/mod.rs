@@ -1,16 +1,28 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str, sync::{Arc, Mutex}};
 
-use actix_web::{App, HttpResponse, HttpServer, web};
+use actix_web::{App, HttpResponse, HttpServer, cookie::time::format_description::parse, web};
 use log::{debug, info};
-use p256::elliptic_curve::rand_core::block;
-use serde::Deserialize;
-use crate::{blockchain::BlockChain, wallet::Wallet};
+use serde::{Deserialize , Serialize};
+use sha2::digest::block_buffer::Block;
+use crate::blockchain::{transaction::Transaction as BlockchainTransaction, BlockChain};
+use crate::wallet::Wallet;
 use serde_json;
+
+#[derive( Serialize, Debug)]
+pub struct  TransactionInBlockChain {
+transaction_count : usize,
+transactions :Vec<BlockchainTransaction>
+}
 
 #[derive(Clone, Debug)]
 pub struct ApiServer {
     port: u16,
-    cache: HashMap<String, BlockChain>, // wallet_address -> blockchain
+    /*
+    clone the api server , we will only increase the reference coubt of ARc,
+    and the mutex remain only one
+    
+     */
+    cache: Arc<Mutex<HashMap<String, BlockChain>>>, // wallet_address -> blockchain
 }
 
 
@@ -23,28 +35,71 @@ pub struct Transaction {
   pub amount :String
 
 }
+//http:://localhost:5000/amount/0x12345
+#[derive(Serialize)]
+struct QueryAmount {
+    amount: f64,
+}
+
 
 impl ApiServer {
-    pub fn new(port: u16) -> Self {
-        let wallet_miner = Wallet::new();
-        let miner_address = wallet_miner.get_adress();
+   pub fn new(port: u16) -> Self {
+    let cache = Arc::new(Mutex::new(HashMap::new()));
 
-        // Initialize blockchain for this miner
-        let blockchain = BlockChain::new(miner_address.clone());
+    let mut api_server = ApiServer {
+        port,
+        cache,
+    };
 
-        // Initialize cache
-        let mut cache = HashMap::new();
-        cache.insert(miner_address, blockchain);
+    let wallet_miner = Wallet::new();
+    let miner_address = wallet_miner.get_adress();
 
-       let mut api_server =  ApiServer {
-            port,
-            cache,
-        };
+  {
+    /*
+    get the lock of MUtex return Result<ApiServer ,None> if we get lock k,
+    we need to use unwrap to get APiServer from Result
 
-        return  api_server;
+    The lock will cause reference to mutex , referenc to the Apiserver
+    need to release the lock before returing to the api_server,
+    no  unlock method , only  way to unlock thge mutex is let go out of  its scope
+     */
+    let mut unlock_cache =api_server.cache.lock().unwrap();
+    unlock_cache.insert("blockchain".to_string(), BlockChain::new(miner_address));
+
+
+  }
+
+return api_server;
+}
+    pub async fn get_amount(
+        data: web::Data<Arc<ApiServer>>,
+        path: web::Path<String>,
+    ) -> HttpResponse {
+        let address = path.into_inner();
+        let api_server = data.get_ref();
+        let unlock_cache = api_server.cache.lock().unwrap();
+        let block_chain = unlock_cache.get("blockchain").unwrap();
+        let amount = block_chain.calculate_total_amount(address);
+        let amount_return = QueryAmount { amount };
+
+        HttpResponse::Ok().json(amount_return)
     }
 
-   async fn get_wallet() -> HttpResponse {
+
+   pub async fn mining(data: web::Data<Arc<ApiServer>>) -> HttpResponse {
+        let api_server = data.get_ref();
+        let mut unlock_cache = api_server.cache.lock().unwrap();
+        let block_chain = unlock_cache.get_mut("blockchain").unwrap();
+        let is_mined = block_chain.mining();
+        if (!is_mined) {
+            return HttpResponse::InternalServerError().json("mining fail");
+        }
+
+        HttpResponse::Ok().json("mining ok")
+    }
+
+       
+async fn get_wallet() -> HttpResponse {
         HttpResponse::Ok().content_type("text/html").body(
             r#"
             <!DOCTYPE html>
@@ -162,12 +217,50 @@ impl ApiServer {
             "#
         )
     }
-       
+pub  async fn get_transaction_handler(
+    data:web::Data<Arc<ApiServer>>,
+    transaction : web::Json<Transaction>,
+) -> HttpResponse {
+    
+let tx = transaction.into_inner();
+debug!("receive json info:{:?}",tx);
+// pase return Result
+ let amount = tx.amount.parse::<f64>().unwrap();
 
-pub  async fn get_transaction_handler(transaction : web::Json<Transaction>) -> HttpResponse {
-    debug!("received json info :{:?}", transaction.into_inner());
-   HttpResponse::Ok().json("transaction")
+//need to create wallet instance from the transaction
+
+let mut wallet = Wallet::new_from(&tx.public_key , &tx.private_key , &tx.blockchain_address);
+let wallet_tx = wallet.sign_transaction(&tx.recipient_address , amount);
+let api_server = data.get_ref();
+let mut unlock_cache = api_server.cache.lock().unwrap();
+let block_chain = unlock_cache.get_mut("blockchain").unwrap();
+let add_result = block_chain.add_transaction(&wallet_tx);
+if !add_result{
+    info!("add transaction to blockchain failed");
+    return  HttpResponse::InternalServerError().json("add transaction to blockchain Failed");
 }
+
+info!("add transaction to blockchain ok");
+return  HttpResponse::Ok().json("add transaction to blockchain ok");
+
+
+}
+
+    pub async fn show_transaction(data: web::Data<Arc<ApiServer>>) -> HttpResponse {
+        let api_server = data.get_ref();
+        let unlock_cache = api_server.cache.lock().unwrap();
+        let block_chain = unlock_cache.get("blockchain").unwrap();
+        let mut get_transactions = TransactionInBlockChain {
+            transaction_count: 0,
+            transactions: Vec::<BlockchainTransaction>::new(),
+        };
+        get_transactions.transactions = block_chain.get_transactions();
+        get_transactions.transaction_count = get_transactions.transactions.len();
+        debug!("show transactions in chain:{:?}", get_transactions);
+        HttpResponse::Ok().json(get_transactions)
+    }
+
+
     async fn get_wallet_handler() -> HttpResponse{ 
         let wallet_user = Wallet::new();
         let wallet_data = wallet_user.get_wallet_data();
@@ -176,16 +269,13 @@ pub  async fn get_transaction_handler(transaction : web::Json<Transaction>) -> H
     
     // Instance method to get blockchain info
 
-    async fn get_index(&self) -> HttpResponse {
-         let blockchain = self.cache.get("blockchain").unwrap();
-         let first_block = blockchain[0].clone();
-         let block_json = serde_json::to_string(&first_block).unwrap();
-         debug!("block json {:?}",block_json);
-        return   HttpResponse::Ok().json(block_json);
-
-
-    
+      async fn get_index(&self) -> HttpResponse {
+        let unlock_cache = self.cache.lock().unwrap();
+        let blockchain = unlock_cache.get("blockchain").unwrap();
+        let blocks = &blockchain.chain;
+        HttpResponse::Ok().json(blocks)
     }
+
 
     // Handler for Actix
     pub async fn get_index_handler(data: web::Data<Arc<ApiServer>>) -> HttpResponse {
@@ -206,6 +296,10 @@ pub  async fn get_transaction_handler(transaction : web::Json<Transaction>) -> H
                 .route("/wallet", web::get().to(Self::get_wallet))
                 .route("/get-wallet", web::get().to(Self::get_wallet_handler))
               .route("/transaction", web::post().to(Self::get_transaction_handler))
+               .route("/show-transaction", web::get().to(Self::show_transaction))
+               .route("/mining", web::get().to(Self::mining))
+                .route("/amount/{address}", web::get().to(Self::get_amount))
+               
         });
 
         println!("Server is running on port: {}", port);
