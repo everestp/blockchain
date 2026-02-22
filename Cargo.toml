@@ -5,4 +5,6 @@ edition = "2024"
 
 [dependencies]
 hex = "0.4.3"
+p256 = { version = "0.13", features = ["ecdsa","arithmetic"] }
+rand_core = "0.10.0"
 sha2 = "0.10.9"
