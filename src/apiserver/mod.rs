@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{App, HttpResponse, HttpServer, web};
 use log::{debug, info};
 use p256::elliptic_curve::rand_core::block;
+use serde::Deserialize;
 use crate::{blockchain::BlockChain, wallet::Wallet};
 use serde_json;
 
@@ -10,6 +11,17 @@ use serde_json;
 pub struct ApiServer {
     port: u16,
     cache: HashMap<String, BlockChain>, // wallet_address -> blockchain
+}
+
+
+#[derive(Debug ,Deserialize)]
+pub struct Transaction {
+  pub private_key :String,
+  pub public_key : String,
+  pub blockchain_address :String,
+  pub recipient_address:String,
+  pub amount :String
+
 }
 
 impl ApiServer {
@@ -151,6 +163,11 @@ impl ApiServer {
         )
     }
        
+
+pub  async fn get_transaction_handler(transaction : web::Json<Transaction>) -> HttpResponse {
+    debug!("received json info :{:?}", transaction.into_inner());
+   HttpResponse::Ok().json("transaction")
+}
     async fn get_wallet_handler() -> HttpResponse{ 
         let wallet_user = Wallet::new();
         let wallet_data = wallet_user.get_wallet_data();
@@ -188,6 +205,7 @@ impl ApiServer {
                 .route("/", web::get().to(ApiServer::get_index_handler))
                 .route("/wallet", web::get().to(Self::get_wallet))
                 .route("/get-wallet", web::get().to(Self::get_wallet_handler))
+              .route("/transaction", web::post().to(Self::get_transaction_handler))
         });
 
         println!("Server is running on port: {}", port);
