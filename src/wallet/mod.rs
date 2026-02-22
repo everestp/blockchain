@@ -1,10 +1,12 @@
+use log::debug;
 use p256::{
     ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer, signature::Verifier},
     elliptic_curve::rand_core::OsRng,
 };
 use sha2::{Sha256, Digest};
 use ripemd160::{Ripemd160, Digest as RipDigest};
-use serde::{Serialize, Deserialize};
+use serde::{Serialize};
+
 
 pub struct Wallet {
     pub signing_key: SigningKey,
@@ -12,6 +14,14 @@ pub struct Wallet {
     address: String,
 }
 
+#[derive(Serialize , Debug ,Clone)]
+pub struct  WalletData {
+    pub public_key :String,
+    pub private_key :String,
+    pub blockchain_address :String
+
+
+}
 #[derive(Serialize, Clone, Debug)]
 pub struct Transaction {
     pub sender: String,
@@ -84,6 +94,14 @@ impl Wallet {
         }
     }
 
+    pub fn get_wallet_data(&self) -> WalletData {
+        WalletData { 
+            public_key :self.public_key_str(),
+            private_key :self.private_key_str(),
+            blockchain_address:self.address.clone(),
+
+        }
+    }
     // PUBLIC KEY STRING
     pub fn public_key_str(&self) -> String {
         let encoded = self.verifying_key.to_encoded_point(false);
